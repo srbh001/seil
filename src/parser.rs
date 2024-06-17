@@ -12,7 +12,7 @@
 //
 
 use crate::lexer::{
-    InstructionPipelined, InstructionSingleCycle, Lexer, Processor, Register, Token, TokenStream,
+    Lexer, Processor, Register, Token, TokenStream, INSTRUCTION_PIPELINED, INSTRUCTION_SINGLE_CYCLE,
 };
 
 pub struct Instruction {
@@ -25,29 +25,24 @@ pub struct Instruction {
     pub processor: Processor, //use this to determine the type of instruction
 }
 
-pub fn parse(tokens: Vec<Token>, processor: Processor) -> Vec<Instruction> {
-    let mut instructions = Vec::new();
-    let mut token_stream = TokenStream {
-        tokens,
-        position: 0,
-    };
-
-    while token_stream.position < token_stream.tokens.len() {
-        let instruction = parse_instruction(&token_stream, processor.clone());
-        instructions.push(instruction);
-    }
-
-    instructions
-}
-
-pub fn parse_instruction(token_stream: &TokenStream, processor: Processor) -> Instruction {
-    Instruction {
-        instruction: String::from(""),
-        rd: Register::R1,
-        rs1: Register::R1,
-        rs2: Register::R1,
-        imm: 0,
-        line_number: 0,
-        processor,
+impl Instruction {
+    pub fn new(
+        instruction: String,
+        rd: Register,
+        rs1: Register,
+        rs2: Register,
+        imm: i32,
+        line_number: i32,
+        processor: Processor,
+    ) -> Instruction {
+        Instruction {
+            instruction,
+            rd,
+            rs1,
+            rs2,
+            imm,
+            line_number,
+            processor,
+        }
     }
 }

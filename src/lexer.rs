@@ -13,59 +13,59 @@
 #![allow(dead_code)]
 // TODO: Remove this line after implementing the code
 
+use std::fmt;
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Processor {
     SingleCycle,
     Pipelined,
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum InstructionSingleCycle {
-    ADD, // 0x00
-    SUB, //0x02
-    MUL, //0x03
-    ADI, // 0x01
-    AND, // 0x04
-    ORA, // 0x05
-    IMP, // 0x06
-    LHI, // 0x08
-    LLI, // 0x09
-    LW,  // 0x0A
-    SW,  // 0x0B
-    BEQ, // 0x0C
-    JAL, // 0x0D
-    JLR, // 0x0F
-}
+pub const INSTRUCTION_SINGLE_CYCLE: [&'static str; 14] = [
+    "ADD", // 0x00
+    "SUB", //0x02
+    "MUL", //0x03
+    "ADI", // 0x01
+    "AND", // 0x04
+    "ORA", // 0x05
+    "IMP", // 0x06
+    "LHI", // 0x08
+    "LLI", // 0x09
+    "LW",  // 0x0A
+    "SW",  // 0x0B
+    "BEQ", // 0x0C
+    "JAL", // 0x0D
+    "JLR", // 0x0F
+];
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum InstructionPipelined {
-    ADA, //00_01 RA RB RC 0 00
-    ADC, //00_01 RA RB RC 0 10
-    ADZ, //00_01 RA RB RC 0 01
-    AWC, //00_01 RA RB RC 0 11
-    ACA, //00_01 RA RB RC 1 00
-    ACC, //00_01 RA RB RC 1 10
-    ACZ, //00_01 RA RB RC 1 01
-    ACW, //00_01 RA RB RC 1 11
-    ADI, //00 RA RB IMM6
-    NDU, //00_10 RA RB RC 0 00
-    NDC, //00_10 RA RB RC 0 10
-    NDZ, //00_10 RA RB RC 0 01
-    NCU, //00_10 RA RB RC 1 00
-    NCC, //00_10 RA RB RC 1 10
-    NCZ, //00_10 RA RB RC 1 01
-    LLI, //00_11 RA IMM9
-    LW,  //01_00 RA RB IMM6
-    SW,  //01_01 RA RB IMM6
-    LM,  //01_10 RA 0 + 8 bits corresponding to R0 to R7
-    SM,  //01_11 RA 0 + 8 bits corresponding to R0 to R7
-    BEQ, //10_00 RA RB IMM6
-    BLT, //10_01 RA RB IMM6
-    BLE, //10_10 RA RB IMM6
-    JAL, //11_00 RA IMM9
-    JLR, //11_01 RA 0 0000
-    JRI, //11_11 RA 0 0000
-}
+pub const INSTRUCTION_PIPELINED: [&'static str; 26] = [
+    "ADA", //00_01 RA RB RC 0 00
+    "ADC", //00_01 RA RB RC 0 10
+    "ADZ", //00_01 RA RB RC 0 01
+    "AWC", //00_01 RA RB RC 0 11
+    "ACA", //00_01 RA RB RC 1 00
+    "ACC", //00_01 RA RB RC 1 10
+    "ACZ", //00_01 RA RB RC 1 01
+    "ACW", //00_01 RA RB RC 1 11
+    "ADI", //00 RA RB IMM6
+    "NDU", //00_10 RA RB RC 0 00
+    "NDC", //00_10 RA RB RC 0 10
+    "NDZ", //00_10 RA RB RC 0 01
+    "NCU", //00_10 RA RB RC 1 00
+    "NCC", //00_10 RA RB RC 1 10
+    "NCZ", //00_10 RA RB RC 1 01
+    "LLI", //00_11 RA IMM9
+    "LW",  //01_00 RA RB IMM6
+    "SW",  //01_01 RA RB IMM6
+    "LM",  //01_10 RA 0 + 8 bits corresponding to R0 to R7
+    "SM",  //01_11 RA 0 + 8 bits corresponding to R0 to R7
+    "BEQ", //10_00 RA RB IMM6
+    "BLT", //10_01 RA RB IMM6
+    "BLE", //10_10 RA RB IMM6
+    "JAL", //11_00 RA IMM9
+    "JLR", //11_01 RA 0 0000
+    "JRI", //11_11 RA 0 0000
+];
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Register {
@@ -81,8 +81,7 @@ pub enum Register {
 
 #[derive(Debug, PartialEq)]
 pub enum TokenType {
-    InstrSingle(InstructionSingleCycle), // Reserved keywords to be used only for instructions - mentioned in the ISA
-    InstrPipe(InstructionPipelined), // Reserved keywords to be used only for instructions - mentioned in the ISA
+    InstrSingle(String), // Reserved keywords to be used only for instructions - mentioned in the ISA, // Reserved keywords to be used only for instructions - mentioned in the ISA
     Reg(Register),
     Operand,
     Label,
@@ -98,8 +97,7 @@ pub enum TokenType {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token {
-    IdentifierSingle(InstructionSingleCycle), // a symbol(opcode),
-    IdentifierPipelined(InstructionPipelined), // a symbol(opcode), // only one of these will be used
+    Opcode(String), // a symbol(opcode)
     Label(String),
     Number(i32),
     Register(Register),
@@ -107,6 +105,7 @@ pub enum Token {
     EOF,
     Error(String), // for unknown tokens
     Comma,
+    NewLine,
 }
 
 // #[derive(Debug, PartialEq)]
@@ -146,16 +145,11 @@ impl Lexer {
     }
 
     fn skip_whitespace(&mut self) {
-        while let Some(ch) = self.next_char() {
-            if (ch.is_whitespace() || ch == '\n') {
-                self.next_char();
-                self.position -= 1;
-                // println!("This is the problem");
+        while let Some(ch) = self.peek_char() {
+            if ch.is_whitespace() && ch != '\n' {
+                self.next_char(); // advance position
             } else {
-                self.position -= 1;
-                //println!("This is the problem {:?}", self.peek_char());
-
-                break;
+                break; // stop if a non-whitespace character is found
             }
         }
     }
@@ -244,134 +238,20 @@ impl Lexer {
 
                             _ => {
                                 if matches!(processor, Processor::SingleCycle) {
-                                    match identifier.to_uppercase().as_str() {
-                                        "ADD" => {
-                                            Token::IdentifierSingle(InstructionSingleCycle::ADD)
-                                        }
-                                        "SUB" => {
-                                            Token::IdentifierSingle(InstructionSingleCycle::SUB)
-                                        }
-                                        "MUL" => {
-                                            Token::IdentifierSingle(InstructionSingleCycle::MUL)
-                                        }
-                                        "ADI" => {
-                                            Token::IdentifierSingle(InstructionSingleCycle::ADI)
-                                        }
-                                        "AND" => {
-                                            Token::IdentifierSingle(InstructionSingleCycle::AND)
-                                        }
-                                        "ORA" => {
-                                            Token::IdentifierSingle(InstructionSingleCycle::ORA)
-                                        }
-                                        "IMP" => {
-                                            Token::IdentifierSingle(InstructionSingleCycle::IMP)
-                                        }
-                                        "LHI" => {
-                                            Token::IdentifierSingle(InstructionSingleCycle::LHI)
-                                        }
-                                        "LLI" => {
-                                            Token::IdentifierSingle(InstructionSingleCycle::LLI)
-                                        }
-                                        "LW" => Token::IdentifierSingle(InstructionSingleCycle::LW),
-                                        "SW" => Token::IdentifierSingle(InstructionSingleCycle::SW),
-                                        "BEQ" => {
-                                            Token::IdentifierSingle(InstructionSingleCycle::BEQ)
-                                        }
-                                        "JAL" => {
-                                            Token::IdentifierSingle(InstructionSingleCycle::JAL)
-                                        }
-                                        "JLR" => {
-                                            Token::IdentifierSingle(InstructionSingleCycle::JLR)
-                                        }
-                                        _ => Token::Error(format!(
-                                            "Unknown identifier: {}",
-                                            identifier
-                                        )),
+                                    if INSTRUCTION_SINGLE_CYCLE
+                                        .contains(&identifier.to_uppercase().as_str())
+                                    {
+                                        Token::Opcode(identifier)
+                                    } else {
+                                        Token::Error(identifier)
                                     }
                                 } else if matches!(processor, Processor::Pipelined) {
-                                    match identifier.to_uppercase().as_str() {
-                                        "ADA" => {
-                                            Token::IdentifierPipelined(InstructionPipelined::ADA)
-                                        }
-                                        "ADC" => {
-                                            Token::IdentifierPipelined(InstructionPipelined::ADC)
-                                        }
-                                        "ADZ" => {
-                                            Token::IdentifierPipelined(InstructionPipelined::ADZ)
-                                        }
-                                        "AWC" => {
-                                            Token::IdentifierPipelined(InstructionPipelined::AWC)
-                                        }
-                                        "ACA" => {
-                                            Token::IdentifierPipelined(InstructionPipelined::ACA)
-                                        }
-                                        "ACC" => {
-                                            Token::IdentifierPipelined(InstructionPipelined::ACC)
-                                        }
-                                        "ACZ" => {
-                                            Token::IdentifierPipelined(InstructionPipelined::ACZ)
-                                        }
-                                        "ACW" => {
-                                            Token::IdentifierPipelined(InstructionPipelined::ACW)
-                                        }
-                                        "ADI" => {
-                                            Token::IdentifierPipelined(InstructionPipelined::ADI)
-                                        }
-                                        "NDU" => {
-                                            Token::IdentifierPipelined(InstructionPipelined::NDU)
-                                        }
-                                        "NDC" => {
-                                            Token::IdentifierPipelined(InstructionPipelined::NDC)
-                                        }
-                                        "NDZ" => {
-                                            Token::IdentifierPipelined(InstructionPipelined::NDZ)
-                                        }
-                                        "NCU" => {
-                                            Token::IdentifierPipelined(InstructionPipelined::NCU)
-                                        }
-                                        "NCC" => {
-                                            Token::IdentifierPipelined(InstructionPipelined::NCC)
-                                        }
-                                        "NCZ" => {
-                                            Token::IdentifierPipelined(InstructionPipelined::NCZ)
-                                        }
-                                        "LLI" => {
-                                            Token::IdentifierPipelined(InstructionPipelined::LLI)
-                                        }
-                                        "LW" => {
-                                            Token::IdentifierPipelined(InstructionPipelined::LW)
-                                        }
-                                        "SW" => {
-                                            Token::IdentifierPipelined(InstructionPipelined::SW)
-                                        }
-                                        "LM" => {
-                                            Token::IdentifierPipelined(InstructionPipelined::LM)
-                                        }
-                                        "SM" => {
-                                            Token::IdentifierPipelined(InstructionPipelined::SM)
-                                        }
-                                        "BEQ" => {
-                                            Token::IdentifierPipelined(InstructionPipelined::BEQ)
-                                        }
-                                        "BLT" => {
-                                            Token::IdentifierPipelined(InstructionPipelined::BLT)
-                                        }
-                                        "BLE" => {
-                                            Token::IdentifierPipelined(InstructionPipelined::BLE)
-                                        }
-                                        "JAL" => {
-                                            Token::IdentifierPipelined(InstructionPipelined::JAL)
-                                        }
-                                        "JLR" => {
-                                            Token::IdentifierPipelined(InstructionPipelined::JLR)
-                                        }
-                                        "JRI" => {
-                                            Token::IdentifierPipelined(InstructionPipelined::JRI)
-                                        }
-                                        _ => Token::Error(format!(
-                                            "Unknown identifier: {}",
-                                            identifier
-                                        )),
+                                    if INSTRUCTION_PIPELINED
+                                        .contains(&identifier.to_uppercase().as_str())
+                                    {
+                                        Token::Opcode(identifier)
+                                    } else {
+                                        Token::Error(identifier)
                                     }
                                 } else {
                                     Token::Error(format!("Unknown processor: {:?}", processor))
@@ -381,12 +261,12 @@ impl Lexer {
                     }
                 } else if ch == '/' && self.peek_char() == Some('/') {
                     self.position += 1; // skip the second '/'
-                    let index = self.input[self.position..].iter().position(|&x| x == 'R');
+                    let index = self.input[self.position..].iter().position(|&x| x == '\n');
                     if let Some(_index) = index {
-                        let comment: String = self.input[self.position..self.position + _index]
+                        let comment: String = self.input[self.position..self.position + _index - 1]
                             .iter()
                             .collect();
-                        self.position += _index;
+                        self.position += _index - 1;
                         Token::Comment(comment)
                     } else {
                         let comment: String = self.input[self.position..].iter().collect();
@@ -413,8 +293,11 @@ impl Lexer {
                         Token::Comment(comment)
                     }
                 } else if ch == ',' {
-                    self.position += 1;
+                    //self.position += 1;
                     Token::Comma
+                } else if ch == '\n' {
+                    //self.position += 1;
+                    Token::NewLine
                 } else {
                     Token::Error(format!("Unknown token: {}", ch))
                 }
@@ -424,35 +307,58 @@ impl Lexer {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct TokenStream {
-    pub tokens: Vec<Token>,
+    pub tokens_by_line: Vec<Vec<Token>>, // store tokens by line
     pub position: usize,
+    pub line: usize,
 }
 
 impl TokenStream {
     pub fn new() -> Self {
         TokenStream {
-            tokens: Vec::new(),
+            tokens_by_line: Vec::new(),
             position: 0,
+            line: 0,
         }
     }
 
     pub fn from(tokens: Vec<Token>) -> Self {
         TokenStream {
-            tokens,
+            tokens_by_line: vec![tokens], //TODO: write better way to parse all the tokens
             position: 0,
+            line: 0,
         }
     }
 
     pub fn add(&mut self, token: Token) {
-        self.tokens.push(token);
+        if let Some(tokens) = self.tokens_by_line.last_mut() {
+            if let Some(last_token) = tokens.last_mut() {
+                if matches!(last_token, Token::NewLine) {
+                    self.tokens_by_line.push(vec![token]);
+                } else {
+                    tokens.push(token);
+                }
+            } else {
+                self.tokens_by_line.push(vec![token]);
+            }
+        } else {
+            self.tokens_by_line.push(vec![token]);
+        }
     }
 
     pub fn next(&mut self) -> Option<&Token> {
-        if self.position < self.tokens.len() {
-            let token = &self.tokens[self.position];
-            self.position += 1;
-            Some(token)
+        if self.line < self.tokens_by_line.len() {
+            let tokens = &self.tokens_by_line[self.line];
+            if self.position < tokens.len() {
+                let token = &tokens[self.position];
+                self.position += 1;
+                Some(token)
+            } else {
+                self.position = 0;
+                self.line += 1;
+                Some(&self.tokens_by_line[self.line][self.position]) // This will most likely result in error.
+            }
         } else {
             None
         }
@@ -460,11 +366,17 @@ impl TokenStream {
 
     pub fn reset(&mut self) {
         self.position = 0;
+        self.line = 0;
     }
 
     pub fn peek(&self) -> Option<&Token> {
-        if self.position < self.tokens.len() {
-            Some(&self.tokens[self.position])
+        if self.line < self.tokens_by_line.len() {
+            let tokens = &self.tokens_by_line[self.line];
+            if self.position < tokens.len() {
+                Some(&tokens[self.position])
+            } else {
+                None
+            }
         } else {
             None
         }
