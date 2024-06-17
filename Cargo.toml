@@ -6,3 +6,9 @@ edition = "2021"
 
 [dependencies]
 tokio = "1.38.0"
+
+# Set some conf such as allow dead code and allow unused variables for entire project
+[profile.dev]
+opt-level = 0
+debug = true
+allow-dead-code = true
