@@ -1,0 +1,8 @@
+[package]
+name = "iitb-cpu"
+authors = ["Saurabh Kumar <saurabhkumarnomeas@gmail.com>"]
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = "1.38.0"
