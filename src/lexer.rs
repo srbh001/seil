@@ -8,14 +8,13 @@
 // For more information, see <https://www.ee.iitb.ac.in/~viren/>.
 // The ISA is based on the RISC-V ISA and has been modified to suit the needs of the EE309 and EE224 courses at IIT Bombay.
 //
-// Author: Saurabh <saurabhkumarnomeas@gmail.com>
 
 #![allow(dead_code)]
 // TODO: Remove this line after implementing the code
 
 use std::fmt;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Processor {
     SingleCycle,
     Pipelined,
@@ -38,7 +37,7 @@ pub const INSTRUCTION_SINGLE_CYCLE: [&'static str; 14] = [
     "JLR", // 0x0F
 ];
 
-pub const INSTRUCTION_PIPELINED: [&'static str; 26] = [
+pub const INSTRUCTION_PIPELINED: [&'static str; 27] = [
     "ADA", //00_01 RA RB RC 0 00
     "ADC", //00_01 RA RB RC 0 10
     "ADZ", //00_01 RA RB RC 0 01
@@ -65,9 +64,10 @@ pub const INSTRUCTION_PIPELINED: [&'static str; 26] = [
     "JAL", //11_00 RA IMM9
     "JLR", //11_01 RA 0 0000
     "JRI", //11_11 RA 0 0000
+    "RET", // END FOR LABEL
 ];
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Register {
     R0,
     R1,
@@ -77,22 +77,6 @@ pub enum Register {
     R5,
     R6,
     R7,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum TokenType {
-    InstrSingle(String), // Reserved keywords to be used only for instructions - mentioned in the ISA, // Reserved keywords to be used only for instructions - mentioned in the ISA
-    Reg(Register),
-    Operand,
-    Label,
-    Immediate6,
-    Immediate9,
-    // Address, - Not relevant for this ISA
-    Comment,
-    Unknown,
-    Symbol,
-
-    EOF,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -108,18 +92,20 @@ pub enum Token {
     NewLine,
 }
 
-// #[derive(Debug, PartialEq)]
-// pub enum TokenPipelined {
-//     Identifier(InstructionPipelined), // a symbol(opcode),
-//     Label(String),
-//     Number(i32),
-//     Register(Register),
-//     Comment(String),
-//     EOF,
-//     Error(String), // for unknown tokens
-// }
+impl Token {
+    pub fn get_token_string(&self) -> String {
+        // only for tokens that are strings - opcode, label, comment, error
+        match self {
+            Token::Opcode(s) => s.clone(),
+            Token::Label(s) => s.clone(),
+            Token::Comment(s) => s.clone(),
+            Token::Error(s) => s.clone(),
+            _ => panic!("Token is not a string"),
+        }
+    }
+}
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Lexer {
     input: Vec<char>,
     position: usize,
