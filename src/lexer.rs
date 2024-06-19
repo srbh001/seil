@@ -67,24 +67,24 @@ pub const INSTRUCTION_PIPELINED: [&'static str; 27] = [
     "RET", // END FOR LABEL
 ];
 
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub enum Register {
-    R0,
-    R1,
-    R2,
-    R3,
-    R4,
-    R5,
-    R6,
-    R7,
-}
+// #[derive(Debug, PartialEq, Clone, Copy)]
+// pub enum Register {
+//     R0,
+//     R1,
+//     R2,
+//     R3,
+//     R4,
+//     R5,
+//     R6,
+//     R7,
+// }
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token {
     Opcode(String), // a symbol(opcode)
     Label(String),
     Number(i32),
-    Register(Register),
+    Register(i32), // Only allow registers from 0 to 7
     Comment(String),
     EOF,
     Error(String), // for unknown tokens
@@ -390,14 +390,15 @@ impl TokenStream {
 
 fn read_string_to_register(word: String) -> Option<Token> {
     match word.as_str() {
-        "R1" => Some(Token::Register(Register::R1)),
-        "R2" => Some(Token::Register(Register::R2)),
-        "R3" => Some(Token::Register(Register::R3)),
-        "R4" => Some(Token::Register(Register::R4)),
-        "R5" => Some(Token::Register(Register::R5)),
-        "R6" => Some(Token::Register(Register::R6)),
-        "R7" => Some(Token::Register(Register::R7)),
-        "R0" => Some(Token::Register(Register::R0)),
+        "R1" => Some(Token::Register(1)),
+        "R2" => Some(Token::Register(2)),
+        "R3" => Some(Token::Register(3)),
+        "R4" => Some(Token::Register(4)),
+        "R5" => Some(Token::Register(5)),
+        "R6" => Some(Token::Register(6)),
+        "R7" => Some(Token::Register(7)),
+        "R0" => Some(Token::Register(0)),
+
         _ => None,
     }
 }
