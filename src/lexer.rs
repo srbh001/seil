@@ -210,22 +210,6 @@ impl Lexer {
         }
     }
 
-    fn read_string_to_register(word: String) -> Option<Token>{
-        match word.as_str() {
-        "R1" => Token::Register(Register::R1),
-        "R2" => Token::Register(Register::R2),
-        "R3" => Token::Register(Register::R3),
-        "R4" => Token::Register(Register::R4),
-        "R5" => Token::Register(Register::R5),
-        "R6" => Token::Register(Register::R6),
-        "R7" => Token::Register(Register::R7),
-        "R0" => Token::Register(Register::R0),
-        _ => None
-    }
-
-
-
-
     pub fn next_token(&mut self, processor: Processor) -> Token {
         self.skip_whitespace();
         match self.next_char() {
@@ -247,17 +231,9 @@ impl Lexer {
                     if identifier.ends_with(':') {
                         Token::Label(identifier)
                     } else {
-                        match read_string_to_register(identifier.to_uppercase()). {
-                            "R1" => Token::Register(Register::R1),
-                            "R2" => Token::Register(Register::R2),
-                            "R3" => Token::Register(Register::R3),
-                            "R4" => Token::Register(Register::R4),
-                            "R5" => Token::Register(Register::R5),
-                            "R6" => Token::Register(Register::R6),
-                            "R7" => Token::Register(Register::R7),
-                            "R0" => Token::Register(Register::R0),
-
-                            _ => {
+                        match read_string_to_register(identifier.to_uppercase()) {
+                            Some(token) => token,
+                            None => {
                                 if matches!(processor, Processor::SingleCycle) {
                                     if INSTRUCTION_SINGLE_CYCLE
                                         .contains(&identifier.to_uppercase().as_str())
@@ -409,5 +385,19 @@ impl TokenStream {
         } else {
             None
         }
+    }
+}
+
+fn read_string_to_register(word: String) -> Option<Token> {
+    match word.as_str() {
+        "R1" => Some(Token::Register(Register::R1)),
+        "R2" => Some(Token::Register(Register::R2)),
+        "R3" => Some(Token::Register(Register::R3)),
+        "R4" => Some(Token::Register(Register::R4)),
+        "R5" => Some(Token::Register(Register::R5)),
+        "R6" => Some(Token::Register(Register::R6)),
+        "R7" => Some(Token::Register(Register::R7)),
+        "R0" => Some(Token::Register(Register::R0)),
+        _ => None,
     }
 }
