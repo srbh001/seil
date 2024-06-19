@@ -107,7 +107,7 @@ impl Token {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Lexer {
-    input: Vec<char>,
+    pub input: Vec<char>,
     position: usize,
 }
 
@@ -140,17 +140,26 @@ impl Lexer {
         }
     }
 
-    fn read_number(&mut self, first_digit: char) -> i32 {
+    fn read_number(&mut self, first_digit: char) -> String {
+        // later parse the number as an integer if failed return error
+        let mut number_str = String::new();
         let mut number = first_digit.to_digit(10).unwrap() as i32;
+        number_str.push(first_digit);
         while let Some(ch) = self.peek_char() {
             if ch.is_digit(10) {
                 number = number * 10 + ch.to_digit(10).unwrap() as i32;
+                number_str.push(ch);
                 self.next_char();
-            } else {
+            } else if ch.is_whitespace() || ch == ',' || ch == ';' || ch == '\n' {
+                // number parsed successfully
                 break;
+            } else {
+                // error parsing number - not a number
+                number_str.push(ch);
+                self.next_char();
             }
         }
-        number
+        number_str
     }
 
     fn read_identifier(&mut self, first_char: char) -> String {
@@ -176,6 +185,7 @@ impl Lexer {
                         }
                     } else {
                         //self.position = position + 3;
+                        //self.next_char();
                         break;
                     }
                 } else if ch == ':' {
@@ -183,7 +193,7 @@ impl Lexer {
                     self.next_char();
                     break;
                 }
-                self.position -= 1;
+                //self.position -= 1;
                 // println!("ThIS is the problem");
                 break;
             }
@@ -200,19 +210,44 @@ impl Lexer {
         }
     }
 
+    fn read_string_to_register(word: String) -> Option<Token>{
+        match word.as_str() {
+        "R1" => Token::Register(Register::R1),
+        "R2" => Token::Register(Register::R2),
+        "R3" => Token::Register(Register::R3),
+        "R4" => Token::Register(Register::R4),
+        "R5" => Token::Register(Register::R5),
+        "R6" => Token::Register(Register::R6),
+        "R7" => Token::Register(Register::R7),
+        "R0" => Token::Register(Register::R0),
+        _ => None
+    }
+
+
+
+
     pub fn next_token(&mut self, processor: Processor) -> Token {
         self.skip_whitespace();
         match self.next_char() {
             Some(ch) => {
                 if ch.is_digit(10) {
                     let number = self.read_number(ch);
-                    Token::Number(number)
+                    let token = if let Some(number_without_prefix) = number.strip_prefix("0x") {
+                        i32::from_str_radix(number_without_prefix, 16)
+                    } else {
+                        number.parse::<i32>()
+                    };
+
+                    match token {
+                        Ok(parsed_num) => Token::Number(parsed_num),
+                        Err(_) => Token::Error(format!("Invalid number: {}", number)),
+                    }
                 } else if ch.is_alphabetic() {
                     let identifier = self.read_identifier(ch);
                     if identifier.ends_with(':') {
                         Token::Label(identifier)
                     } else {
-                        match identifier.to_uppercase().as_str() {
+                        match read_string_to_register(identifier.to_uppercase()). {
                             "R1" => Token::Register(Register::R1),
                             "R2" => Token::Register(Register::R2),
                             "R3" => Token::Register(Register::R3),
@@ -259,9 +294,6 @@ impl Lexer {
                         self.position += self.input.len();
                         Token::Comment(comment)
                     }
-                    // let comment: String = self.input[self.position...index].iter().collect();
-
-                    //self.position += self.input.len();
 
                     // Token::Comment(comment)
                 } else if ch == ';' {
@@ -279,11 +311,22 @@ impl Lexer {
                         Token::Comment(comment)
                     }
                 } else if ch == ',' {
-                    //self.position += 1;
                     Token::Comma
                 } else if ch == '\n' {
-                    //self.position += 1;
                     Token::NewLine
+                } else if ch == '#' {
+                    match self.next_char() {
+                        Some(num) => {
+                            let number = self.read_number(num);
+                            // TODO: remove the H from the number and assert that it was there
+                            let token = number.parse::<i32>();
+                            match token {
+                                Ok(parsed_num) => Token::Number(parsed_num),
+                                Err(_) => Token::Error(format!("Invalid number: {}", number)),
+                            }
+                        }
+                        None => Token::Error(format!("Invalid number: {}", ch)),
+                    }
                 } else {
                     Token::Error(format!("Unknown token: {}", ch))
                 }

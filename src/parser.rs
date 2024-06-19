@@ -103,13 +103,6 @@ impl Parser {
             self.instructions.push(Vec::new());
         }
         self.instructions[label_count].push(instruction);
-
-        // if self.instructions.len() <= 0 {
-        //     self.instructions.push(Vec::new());
-        // } else {
-        //     let last = self.instructions.len() - 1;
-        //     self.instructions[last].push(instruction);
-        // }
     }
 
     pub fn parse(&mut self) -> Result<(Self), ParserError> {
@@ -287,13 +280,21 @@ impl Parser {
                                     column_number: position + 4,
                                 });
                             }
-
-                            if let Some(Token::Number(num)) = token_by_lines.get(token_position + 4)
+                            if let Some(Token::Comma) = token_by_lines.get(token_position + 4) {
+                                // Expected comma, continue
+                            } else {
+                                return Err(ParserError {
+                                    message: "Expected comma".to_string(),
+                                    line_number: line_number + 1,
+                                    column_number: position + 3,
+                                });
+                            }
+                            if let Some(Token::Number(num)) = token_by_lines.get(token_position + 5)
                             {
                                 imm = *num;
                             } else {
                                 return Err(ParserError {
-                                    message: "Expected immediate".to_string(),
+                                    message: "Expected immediate here".to_string(),
                                     line_number: line_number + 1,
                                     column_number: position + 5,
                                 });
@@ -344,6 +345,9 @@ impl Parser {
                                 Processor::Pipelined,
                             );
                             instructions_to_add.push((instruction, label_count));
+                        } else if opcode.to_uppercase() == "RET" {
+                            // the earlier label has ended and new instructions are to be added
+                            label_count -= 1;
                         } else {
                             return Err(ParserError {
                                 message: format!("Invalid opcode: {}", opcode),
@@ -361,7 +365,6 @@ impl Parser {
         }
 
         // Add instructions after processing all tokens
-        println!("HERE INSTRUCTIONS TO ADD : {:?} \n\n", instructions_to_add);
         for (instruction, label_count) in instructions_to_add {
             self.add_instruction(instruction, label_count);
         }
