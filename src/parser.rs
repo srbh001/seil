@@ -10,15 +10,15 @@
 //
 
 use crate::lexer::{
-    Lexer, Processor, Register, Token, TokenStream, INSTRUCTION_PIPELINED, INSTRUCTION_SINGLE_CYCLE,
+    Lexer, Processor, Token, TokenStream, INSTRUCTION_PIPELINED, INSTRUCTION_SINGLE_CYCLE,
 };
 
 #[derive(Debug, Clone)]
 pub struct Instruction {
     pub opcode: String,
-    pub reg_a: Register,
-    pub reg_b: Option<Register>, // optional
-    pub reg_c: Option<Register>,
+    pub reg_a: i32,
+    pub reg_b: Option<i32>, // optional
+    pub reg_c: Option<i32>,
     pub imm: i32,
     pub line_number: usize,
     pub processor: Processor, //use this to determine the type of instruction
@@ -27,9 +27,9 @@ pub struct Instruction {
 impl Instruction {
     pub fn new(
         opcode: String,
-        reg_a: Register,
-        reg_b: Option<Register>,
-        reg_c: Option<Register>,
+        reg_a: i32,
+        reg_b: Option<i32>,
+        reg_c: Option<i32>,
         imm: i32,
         line_number: usize,
         processor: Processor,
@@ -174,9 +174,9 @@ impl Parser {
                         label_count += 1;
                     }
                     Token::Opcode(opcode) => {
-                        let mut reg_a = Register::R0;
-                        let mut reg_b = Register::R0;
-                        let mut reg_c = Register::R0;
+                        let mut reg_a = 0;
+                        let mut reg_b = 0;
+                        let mut reg_c = 0;
                         let mut imm = 0;
 
                         if opcodes_with_three_register_pipelined.contains(&opcode.as_str()) {
