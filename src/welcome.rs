@@ -1,10 +1,11 @@
 // Welcome screen for the text editor
 
+use iced::alignment::Horizontal;
 use iced::Length;
 use std::ops::Range;
 
 use crate::texteditor::Message;
-use iced::widget::{button, column, container, row, text};
+use iced::widget::{button, column, container, row, text, Button};
 use iced::Element;
 
 pub fn welcome_screen() -> Element<'static, Message> {
@@ -19,8 +20,9 @@ pub fn welcome_screen() -> Element<'static, Message> {
         column![
             container(text("SEIL").size(50))
                 .width(Length::Fill)
+                .height(80)
                 .center_x(),
-            container(text("Simple Editor for Intermediate Language"))
+            container(text("Simple Editor for IIT B CPU (asm) Language"))
                 .width(Length::Fill)
                 .center_x(),
             container(text("Welcome!")).width(Length::Fill).center_x(),
@@ -31,14 +33,28 @@ pub fn welcome_screen() -> Element<'static, Message> {
     .width(Length::Fill)
     .center_x();
 
-    let open_control = container(button("Open").on_press(Message::OpenFile).padding(5))
-        .width(Length::Fill)
-        .center_x();
+    let open_control = container(
+        button("        Open a file")
+            .on_press(Message::OpenFile)
+            .padding(5)
+            .width(150),
+    )
+    .width(Length::Fill)
+    .center_x();
+
+    let new_file = container(
+        button("           New file") // FIXME: There has to be a better way
+            .on_press(Message::NewFile)
+            .padding(5)
+            .width(150), // center the text inside button
+    )
+    .width(Length::Fill)
+    .center_x();
 
     container(
         row![
             img,
-            container(column![welcome, open_control])
+            container(column![welcome, open_control, new_file].spacing(10))
                 .height(Length::Fill)
                 .center_y()
         ]
