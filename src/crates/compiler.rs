@@ -16,3 +16,88 @@
 //    - The ADD instruction writes to R2, and the LW instruction writes to R1.
 //
 // Method used to mitigate hazards: [List Scheduling](https://en.wikipedia.org/wiki/List_scheduling).
+
+use crate::lexer::{Lexer, Token, TokenStream};
+use crate::parser::{Instruction, Parser};
+
+pub fn dissasembler(parser: Parser) {
+    let instructions = parser.instructions;
+    let labels = parser.labels;
+    let label_line_numbers = parser.label_line_numbers;
+    let lexer_string: String = parser.lexer.input.iter().collect();
+    let mut lines_traversed = 0;
+
+    for instruction in instructions.iter() {
+        let opcode = instruction.opcode.clone();
+        let reg_a = instruction.reg_a;
+        let reg_b = instruction.reg_b;
+        let reg_c = instruction.reg_c;
+        let imm = instruction.imm;
+
+        if instruction.line_number > lines_traversed {
+            let line = lexer_string
+                .lines()
+                .nth(instruction.line_number - 1)
+                .unwrap();
+            println!("{}", line);
+            instruction_to_binary(instruction.clone());
+            lines_traversed = instruction.line_number;
+        }
+    }
+}
+
+fn instruction_to_binary(instruction: Instruction) {}
+
+fn register_to_binary(reg: &str) -> &str {
+    match reg {
+        "R0" => "000",
+        "R1" => "001",
+        "R2" => "010",
+        "R3" => "011",
+        "R4" => "100",
+        "R5" => "101",
+        "R6" => "110",
+        "R7" => "111",
+        _ => panic!("Invalid register"),
+    }
+}
+
+fn opcode_to_binary(opcode: &str) -> &str {
+    match opcode {
+        "ADA" => "0001", // RA RB RC 0 00
+        "ADC" => "0001", // RA RB RC 0 10
+        "ADZ" => "0001", // RA RB RC 0 01
+        "AWC" => "0001", // RA RB RC 0 11
+        "ACA" => "0001", // RA RB RC 1 00
+        "ACC" => "0001", // RA RB RC 1 10
+        "ACZ" => "0001", // RA RB RC 1 01
+        "ACW" => "0001", // RA RB RC 1 11
+        "ADI" => "00RA", // RB IMM6
+        "NDU" => "0010", // RA RB RC 0 00
+        "NDC" => "0010", // RA RB RC 0 10
+        "NDZ" => "0010", // RA RB RC 0 01
+        "NCU" => "0010", // RA RB RC 1 00
+        "NCC" => "0010", // RA RB RC 1 10
+        "NCZ" => "0010", // RA RB RC 1 01
+        "LLI" => "0011", // RA IMM9
+        "LW" => "0100",  //0 RA RB IMM6
+        "SW" => "0101",  //1 RA RB IMM6
+        "LM" => "0110",  //0 RA 0 + 8 bits corresponding to R0 to R7
+        "SM" => "0111",  //1 RA 0 + 8 bits corresponding to R0 to R7
+        "BEQ" => "1000", // RA RB IMM6
+        "BLT" => "1001", // RA RB IMM6
+        "BLE" => "1010", // RA RB IMM6
+        "JAL" => "1100", // RA IMM9
+        "JLR" => "1101", // RA 0 0000
+        "JRI" => "1111", //"; RA 0 000
+        _ => panic!("Invalid opcode"),
+    }
+}
+
+fn immediate_to_binary(imm: i32) -> String {
+    let imm_binary = format!("{:b}", imm.to_owned());
+    let imm_binary_len = imm_binary.len();
+    let mut imm_binary_padded = String::from("0".repeat(16 - imm_binary_len));
+    imm_binary_padded.push_str(&imm_binary);
+    imm_binary_padded
+}

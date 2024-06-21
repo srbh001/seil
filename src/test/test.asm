@@ -1,7 +1,7 @@
 
 Main: AWC R1 , R2 , R3
       ADA R1 , R2 , R3
-      RET
+
 MAIN3:
     ADA R1, R2 , R4 ; comments Version2"
     LW R2, R1 ,  10
