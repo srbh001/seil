@@ -3,10 +3,13 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::crates::custom_themes;
-use crate::lexer::Lexer;
+
+use crate::lexer::{Lexer, Processor, Token};
 use crate::welcome::welcome_screen;
+use iced::widget::text::Text;
 use iced::widget::{button, column, container, row, text, text_editor, Button};
 use iced::widget::{horizontal_space, Column};
+use iced::Font;
 use iced::Settings;
 use iced::{executor, Application, Command, Element, Length, Sandbox, Theme};
 
@@ -65,6 +68,7 @@ impl Application for Editor {
         match message {
             Message::Edit(action) => {
                 self.content.perform(action);
+                //let input = self.content.text().clone();
                 Command::none()
             }
             Message::FileOpened(Ok((path, result))) => {
@@ -159,4 +163,33 @@ enum Error {
 
 fn default_path() -> PathBuf {
     PathBuf::from(format!("{}/src/test/test.asm", env!("CARGO_MANIFEST_DIR")))
+}
+const FONT: Font = Font::DEFAULT;
+
+fn highlight_token(token: Token) -> String {
+    match token {
+        Token::Opcode(op) => op.to_owned(),
+        Token::Label(label) => label.to_owned(),
+        Token::Number(num) => num.to_string(),
+        Token::Register(reg) => format!("R{}", reg),
+        Token::Comment(comment) => comment.to_owned(),
+        Token::Comma => ",".to_owned(),
+        Token::NewLine => "\n".to_owned(),
+        _ => String::new(), // Default for other tokens
+    }
+}
+
+fn highlight_code(input: &str, processor: Processor) -> Column<Message> {
+    let mut lexer = Lexer::new(input);
+    let mut column = Column::new().spacing(5);
+
+    while let token = lexer.next_token(processor) {
+        if let Token::EOF = token {
+            break;
+        }
+        let highlighted_text = highlight_token(token);
+        column = column.push(Text::new(highlighted_text).font(FONT).size(20));
+    }
+
+    column
 }

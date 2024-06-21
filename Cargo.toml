@@ -8,7 +8,7 @@ edition = "2021"
 
 tokio = {version = "1.0.1", features = ["fs", "rt"]}
 #iced = {git = "https://github.com/iced-rs/iced.git", rev = "refs/tags/text-editor", features=["debug", "canvas", "highlighter"]}
-iced = {version = "0.12.0", features=["debug", "canvas", "highlighter", "tokio"]}
+iced = {version = "0.12.0", features=["debug", "canvas", "highlighter", "tokio", "image"]}
 rfd = {version ="*" }
 # iced_core = "*"
 # ropey = "*"
