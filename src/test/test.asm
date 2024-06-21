@@ -1,6 +1,6 @@
 
 Main: AWC R1 , R2 , R3
-      ADA R1 , R2 , R3
+      ADA R1 , R2 , R
 
 MAIN3:
     ADA R1, R2 , R4 ; comments Version2"

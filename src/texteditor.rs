@@ -2,7 +2,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use crate::crates::custom_themes::dracula;
+use crate::crates::custom_themes;
 use crate::lexer::Lexer;
 use crate::welcome::welcome_screen;
 use iced::widget::{button, column, container, row, text, text_editor, Button};
@@ -10,9 +10,10 @@ use iced::widget::{horizontal_space, Column};
 use iced::Settings;
 use iced::{executor, Application, Command, Element, Length, Sandbox, Theme};
 
-//use iced::highlighter::{self};
+// use crate::highlighter::highlighter::{self, Highlighter};
 
 pub fn tesh_editor() {
+    //Settings::with_flags(()).window.size = (800, 600);
     Editor::run(Settings::default()).unwrap();
 }
 
@@ -48,7 +49,7 @@ impl Application for Editor {
                 /*path: Some(default_path()),*/
                 path: None,
                 lexer: lexer,
-                content: text_editor::Content::with(lexer_input.as_str()),
+                content: text_editor::Content::with_text(lexer_input.as_str()),
                 error: None,
             },
             //Command::perform(load_file(self.path), Message::FileOpened),
@@ -63,13 +64,13 @@ impl Application for Editor {
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
             Message::Edit(action) => {
-                self.content.edit(action);
+                self.content.perform(action);
                 Command::none()
             }
             Message::FileOpened(Ok((path, result))) => {
                 self.lexer = Lexer::new(result.as_str());
                 let lexer_input = self.lexer.input.iter().collect::<String>();
-                self.content = text_editor::Content::with(lexer_input.as_str());
+                self.content = text_editor::Content::with_text(lexer_input.as_str());
                 self.path = Some(path);
                 Command::none()
             }
@@ -109,21 +110,26 @@ impl Application for Editor {
             text(format!("{}: {}", line + 1, column + 1))
         };
 
-        let status_bar = row![path, horizontal_space(Length::Fill), position];
+        let status_bar = row![path, horizontal_space(), position];
 
-        let input = text_editor(&self.content).on_edit(Message::Edit);
+        let input = text_editor(&self.content)
+            .on_action(Message::Edit)
+            .height(Length::Fill);
+        // .highlight::<Highlighter>(highlighter::Settings {}, |highlight, _theme| {
+        //     highlight.format()
+        //});
 
         // let welcome = text("Welcome to SEIL").size(50);
         match self.path {
-            Some(_) => container(column![controls, input, status_bar].spacing(10))
+            Some(_) => container(column![controls, input, status_bar])
                 .padding(10)
                 .into(),
             None => welcome_screen(),
         }
     }
     fn theme(&self) -> Theme {
-        let palett = dracula().to_owned();
-        Theme::custom(palett)
+        let palett = custom_themes::black().to_owned();
+        Theme::Dracula
     }
 }
 
