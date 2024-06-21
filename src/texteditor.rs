@@ -9,15 +9,31 @@ use crate::welcome::welcome_screen;
 use iced::widget::text::Text;
 use iced::widget::{button, column, container, row, text, text_editor, Button};
 use iced::widget::{horizontal_space, Column};
-use iced::Font;
+use iced::window::Icon;
 use iced::Settings;
 use iced::{executor, Application, Command, Element, Length, Sandbox, Theme};
+use iced::{window, Font, Size};
 
 // use crate::highlighter::highlighter::{self, Highlighter};
 
 pub fn tesh_editor() {
-    //Settings::with_flags(()).window.size = (800, 600);
-    Editor::run(Settings::default()).unwrap();
+    //let vec_u8_icon = include_bytes!("../assets/EDITOR.png").to_vec();
+    //let icon = iced::window::icon::from_rgba(vec_u8_icon, 128, 128).unwrap();
+    let settings = Settings {
+        window: window::Settings {
+            min_size: Some(Size {
+                width: 800.0,
+                height: 600.0,
+            }),
+            transparent: true,
+            decorations: true,
+            //icon: Some(icon),
+            ..window::Settings::default()
+        },
+        ..Settings::default()
+    };
+
+    Editor::run(settings);
 }
 
 struct Editor {
@@ -25,6 +41,7 @@ struct Editor {
     lexer: Lexer, // TODO: Change this to parser
     content: text_editor::Content,
     error: Option<Error>,
+    state: State,
 }
 
 #[derive(Debug, Clone)]
@@ -33,6 +50,12 @@ pub enum Message {
     FileOpened(Result<(PathBuf, Arc<String>), Error>),
     OpenFile,
     CloseFile,
+    NewFile,
+}
+
+pub enum State {
+    Welcome,
+    Editing,
 }
 
 impl Application for Editor {
@@ -54,6 +77,7 @@ impl Application for Editor {
                 lexer: lexer,
                 content: text_editor::Content::with_text(lexer_input.as_str()),
                 error: None,
+                state: State::Welcome,
             },
             //Command::perform(load_file(self.path), Message::FileOpened),
             Command::none(),
@@ -82,10 +106,21 @@ impl Application for Editor {
                 self.error = Some(error);
                 Command::none()
             }
-            Message::OpenFile => Command::perform(pick_file(), Message::FileOpened),
+            Message::OpenFile => {
+                self.state = State::Editing;
+
+                Command::perform(pick_file(), Message::FileOpened)
+            }
             Message::CloseFile => {
                 self.path = None;
                 self.content = text_editor::Content::default();
+                self.state = State::Welcome;
+                Command::none()
+            }
+            Message::NewFile => {
+                self.path = None;
+                self.content = text_editor::Content::default();
+                self.state = State::Editing;
                 Command::none()
             }
         }
@@ -124,11 +159,11 @@ impl Application for Editor {
         //});
 
         // let welcome = text("Welcome to SEIL").size(50);
-        match self.path {
-            Some(_) => container(column![controls, input, status_bar])
+        match self.state {
+            State::Editing => container(column![controls, input, status_bar])
                 .padding(10)
                 .into(),
-            None => welcome_screen(),
+            State::Welcome => welcome_screen(),
         }
     }
     fn theme(&self) -> Theme {
