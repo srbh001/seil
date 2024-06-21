@@ -1,12 +1,23 @@
+mod crates {
+    pub mod compiler;
+    pub mod custom_themes;
+}
+
 mod lexer;
 mod parser;
+mod texteditor;
+mod welcome;
 
 use crate::lexer::{Lexer, Processor, Token, TokenStream};
 use crate::parser::Parser;
+use crate::texteditor::tesh_editor;
+
+use std::env;
 use std::fs::File;
 use std::io::{self, Read};
 
 fn main() -> io::Result<()> {
+    env::set_var("RUST_BACKTRACE", "1");
     let file_name = "./src/test/test.asm";
     let mut file = File::open(file_name)?;
 
@@ -14,8 +25,8 @@ fn main() -> io::Result<()> {
     file.read_to_string(&mut sample)?;
     println!("File content:\n{}", sample);
 
-    let mut token_stream = TokenStream::new();
-    let mut lexer = Lexer::new(&sample.as_str());
+    let token_stream = TokenStream::new();
+    let lexer = Lexer::new(&sample.as_str());
 
     let line_iter = sample.lines();
 
@@ -40,9 +51,10 @@ fn main() -> io::Result<()> {
     }
 
     println!(
-        "\nInstructions: {:?}\nLabels: {:?}\nTokenStream: {:?}",
-        parser.instructions, parser.labels, parser.token_stream
+        "\nInstructions: {:?}\nLabels: {:?}",
+        parser.instructions, parser.token_stream
     );
+    tesh_editor();
 
     Ok(())
 }

@@ -37,7 +37,7 @@ pub const INSTRUCTION_SINGLE_CYCLE: [&'static str; 14] = [
     "JLR", // 0x0F
 ];
 
-pub const INSTRUCTION_PIPELINED: [&'static str; 27] = [
+pub const INSTRUCTION_PIPELINED: [&'static str; 26] = [
     "ADA", //00_01 RA RB RC 0 00
     "ADC", //00_01 RA RB RC 0 10
     "ADZ", //00_01 RA RB RC 0 01
@@ -64,7 +64,6 @@ pub const INSTRUCTION_PIPELINED: [&'static str; 27] = [
     "JAL", //11_00 RA IMM9
     "JLR", //11_01 RA 0 0000
     "JRI", //11_11 RA 0 0000
-    "RET", // END FOR LABEL
 ];
 
 // #[derive(Debug, PartialEq, Clone, Copy)]

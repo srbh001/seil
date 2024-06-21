@@ -12,7 +12,7 @@ Cargo.lock
 
 # Mac OS X Finder files
 .DS_Store
-
+log.md
 
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb

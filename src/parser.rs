@@ -9,9 +9,7 @@
 // The ISA is based on the RISC-V ISA and has been modified to suit the needs of the EE309 and EE224 courses at IIT Bombay.
 //
 
-use crate::lexer::{
-    Lexer, Processor, Token, TokenStream, INSTRUCTION_PIPELINED, INSTRUCTION_SINGLE_CYCLE,
-};
+use crate::lexer::{Lexer, Processor, Token, TokenStream};
 
 #[derive(Debug, Clone)]
 pub struct Instruction {
@@ -21,6 +19,7 @@ pub struct Instruction {
     pub reg_c: Option<i32>,
     pub imm: i32,
     pub line_number: usize,
+    pub column_number: usize,
     pub processor: Processor, //use this to determine the type of instruction
 }
 
@@ -32,6 +31,7 @@ impl Instruction {
         reg_c: Option<i32>,
         imm: i32,
         line_number: usize,
+        column_number: usize,
         processor: Processor,
     ) -> Instruction {
         Instruction {
@@ -41,6 +41,7 @@ impl Instruction {
             reg_c,
             imm,
             line_number,
+            column_number,
             processor,
         }
     }
@@ -49,19 +50,18 @@ impl Instruction {
 #[derive(Debug, Clone)]
 pub struct Parser {
     pub token_stream: TokenStream,
-    pub lexer: Lexer,                        // contains the original sample
-    pub instructions: Vec<Vec<Instruction>>, // the final program - contains labels separated instructions
+    pub lexer: Lexer,                   // contains the original sample
+    pub instructions: Vec<Instruction>, // the final program - contains labels separated instructions
     pub labels: Vec<String>,
+    pub label_line_numbers: Vec<usize>,
     // contains the labels
     // Example:
     // MAIN: ADI R1, R2, 10 // I1
     //       ADC R1, R2, R3 // I2
     //       ADI R1, R2, 10 // I3
-    //       RET
     // NEXT: ADI R1, R2, 10 // I4
     //       ADC R1, R2, R3 // I5
     //       ADI R1, R2, 10 // I6
-    //       RET
     // The above program will be stored as:
     // instructions = [[I1, I2, I3], [I4, I5, I6]]
     // labels = [MAIN, NEXT]
@@ -78,8 +78,9 @@ impl Parser {
     pub fn new(sample: &str) -> Parser {
         let mut token_stream = TokenStream::new();
         let mut lexer = Lexer::new(sample);
-        let mut instructions = Vec::new();
+        let instructions = Vec::new();
         let mut labels = Vec::new();
+        let label_line_numbers = Vec::new();
 
         loop {
             let token = lexer.next_token(Processor::Pipelined);
@@ -95,14 +96,12 @@ impl Parser {
             lexer,
             instructions,
             labels,
+            label_line_numbers,
         }
     }
 
-    pub fn add_instruction(&mut self, instruction: Instruction, label_count: usize) {
-        while self.instructions.len() <= label_count {
-            self.instructions.push(Vec::new());
-        }
-        self.instructions[label_count].push(instruction);
+    pub fn add_instruction(&mut self, instruction: Instruction) {
+        self.instructions.push(instruction);
     }
 
     pub fn parse(&mut self) -> Result<(Self), ParserError> {
@@ -111,10 +110,7 @@ impl Parser {
         //let  mut instructioin:Instruction = Instruction::new(opcode, reg_a, reg_b, reg_c, imm, line_number, processor);
 
         // fields for parser
-        let mut processor = Processor::Pipelined;
-        let mut line = 0;
-        let mut position = 0;
-        let mut line_number = 0;
+        let processor = Processor::Pipelined;
 
         // Data for the instruction
         let opcodes_with_three_register_pipelined = vec![
@@ -144,7 +140,7 @@ impl Parser {
             "BLE", //10_10 RA RB IMM6
         ];
 
-        let mut opcodes_with_single_register_pipelined = vec![
+        let opcodes_with_single_register_pipelined = vec![
             "LLI", //00_11 RA IMM9
             "LM",  //01_10 RA 0 + 8 bits corresponding to R0 to R7
             "SM",  //01_11 RA 0 + 8 bits corresponding to R0 to R7
@@ -172,6 +168,7 @@ impl Parser {
                             });
                         }
                         label_count += 1;
+                        self.label_line_numbers.push(line_number);
                     }
                     Token::Opcode(opcode) => {
                         let mut reg_a = 0;
@@ -235,6 +232,14 @@ impl Parser {
                                     column_number: position + 6,
                                 });
                             }
+                            if reg_b == reg_c {
+                                return Err(ParserError {
+                                    message: "Register B and Register C must be different"
+                                        .to_string(),
+                                    line_number: line_number + 1,
+                                    column_number: position + 4,
+                                });
+                            }
 
                             let instruction = Instruction::new(
                                 opcode.clone(),
@@ -243,6 +248,7 @@ impl Parser {
                                 Some(reg_c),
                                 imm,
                                 line_number + 1,
+                                position + 1,
                                 Processor::Pipelined,
                             );
                             instructions_to_add.push((instruction, label_count));
@@ -307,6 +313,7 @@ impl Parser {
                                 None,
                                 imm,
                                 line_number + 1,
+                                position + 1,
                                 Processor::Pipelined,
                             );
                             instructions_to_add.push((instruction, label_count));
@@ -342,12 +349,10 @@ impl Parser {
                                 None,
                                 imm,
                                 line_number + 1,
+                                position + 1,
                                 Processor::Pipelined,
                             );
                             instructions_to_add.push((instruction, label_count));
-                        } else if opcode.to_uppercase() == "RET" {
-                            // the earlier label has ended and new instructions are to be added
-                            label_count -= 1;
                         } else {
                             return Err(ParserError {
                                 message: format!("Invalid opcode: {}", opcode),
@@ -357,16 +362,21 @@ impl Parser {
                         }
                     }
                     Token::EOF => break,
-                    _ => {
-                        continue;
+                    Token::Error(error) => {
+                        return Err(ParserError {
+                            message: format!("Invalid Token: {}", error),
+                            line_number: line_number + 1,
+                            column_number: position + 1,
+                        })
                     }
+                    _ => continue,
                 }
             }
         }
 
         // Add instructions after processing all tokens
         for (instruction, label_count) in instructions_to_add {
-            self.add_instruction(instruction, label_count);
+            self.add_instruction(instruction);
         }
 
         Ok(self.clone())
