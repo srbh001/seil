@@ -1,16 +1,7 @@
-mod crates {
-    pub mod compiler;
-    pub mod custom_themes;
-}
-
-mod lexer;
-mod parser;
-mod texteditor;
-mod welcome;
-
-use crate::lexer::{Lexer, Processor, Token, TokenStream};
-use crate::parser::Parser;
-use crate::texteditor::tesh_editor;
+use iitb_cpu::crates::compiler::dissasembler;
+use iitb_cpu::lexer::{Lexer, TokenStream};
+use iitb_cpu::parser::Parser;
+use iitb_cpu::texteditor::tesh_editor;
 
 use std::env;
 use std::fs::File;
@@ -25,8 +16,8 @@ fn main() -> io::Result<()> {
     file.read_to_string(&mut sample)?;
     println!("File content:\n{}", sample);
 
-    let token_stream = TokenStream::new();
-    let lexer = Lexer::new(&sample.as_str());
+    let _token_stream = TokenStream::new();
+    let _lexer = Lexer::new(&sample.as_str());
 
     let line_iter = sample.lines();
 
@@ -54,6 +45,8 @@ fn main() -> io::Result<()> {
         "\nInstructions: {:?}\nLabels: {:?}",
         parser.instructions, parser.token_stream
     );
+
+    dissasembler(parser);
     tesh_editor();
 
     Ok(())

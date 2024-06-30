@@ -131,8 +131,7 @@ impl Parser {
         ];
 
         let opcodes_with_two_register_pipelined = vec![
-            "ADI", //00 RA RB IMM6
-            "LLI", //00_11 RA IMM9
+            "ADI", //00_00 RA RB IMM6
             "LW",  //01_00 RA RB IMM6
             "SW",  //01_01 RA RB IMM6
             "BEQ", //10_00 RA RB IMM6
@@ -331,7 +330,17 @@ impl Parser {
                                 });
                             }
 
-                            if let Some(Token::Number(num)) = token_by_lines.get(token_position + 2)
+                            if let Some(Token::Comma) = token_by_lines.get(token_position + 2) {
+                                // Expected comma, continue
+                            } else {
+                                return Err(ParserError {
+                                    message: "Expected comma".to_string(),
+                                    line_number: line_number + 1,
+                                    column_number: position + 3,
+                                });
+                            }
+
+                            if let Some(Token::Number(num)) = token_by_lines.get(token_position + 3)
                             {
                                 imm = *num;
                             } else {

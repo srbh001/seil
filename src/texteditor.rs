@@ -3,22 +3,19 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::crates::custom_themes;
-
-use crate::lexer::{Lexer, Processor, Token};
+use crate::lexer::Lexer;
 use crate::welcome::welcome_screen;
-use iced::widget::text::Text;
-use iced::widget::{button, column, container, row, text, text_editor, Button};
-use iced::widget::{horizontal_space, Column};
-use iced::window::Icon;
+
+use iced::widget::horizontal_space;
+use iced::widget::{button, column, container, row, text, text_editor};
+
 use iced::Settings;
-use iced::{executor, Application, Command, Element, Length, Sandbox, Theme};
+use iced::{executor, Application, Command, Element, Length, Theme};
 use iced::{window, Font, Size};
 
-// use crate::highlighter::highlighter::{self, Highlighter};
+use iced_core::text::LineHeight;
 
 pub fn tesh_editor() {
-    //let vec_u8_icon = include_bytes!("../assets/EDITOR.png").to_vec();
-    //let icon = iced::window::icon::from_rgba(vec_u8_icon, 128, 128).unwrap();
     let settings = Settings {
         window: window::Settings {
             min_size: Some(Size {
@@ -42,6 +39,7 @@ struct Editor {
     content: text_editor::Content,
     error: Option<Error>,
     state: State,
+    line_nume: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -68,8 +66,6 @@ impl Application for Editor {
         let lexer = Lexer::new("");
         let lexer_input = lexer.input.iter().collect::<String>();
 
-        println!("Lexer input: {:?}", lexer_input.as_str());
-
         (
             Self {
                 /*path: Some(default_path()),*/
@@ -78,6 +74,7 @@ impl Application for Editor {
                 content: text_editor::Content::with_text(lexer_input.as_str()),
                 error: None,
                 state: State::Welcome,
+                line_nume: 1,
             },
             //Command::perform(load_file(self.path), Message::FileOpened),
             Command::none(),
@@ -92,6 +89,7 @@ impl Application for Editor {
         match message {
             Message::Edit(action) => {
                 self.content.perform(action);
+                self.line_nume = self.content.line_count() + 1;
                 //let input = self.content.text().clone();
                 Command::none()
             }
@@ -151,23 +149,37 @@ impl Application for Editor {
 
         let status_bar = row![path, horizontal_space(), position];
 
+        let mut lines_coutnt = String::from(" 1 \n");
+
+        for i in 1..self.line_nume {
+            let value = (i + 1).to_string();
+            if i < 9 {
+                lines_coutnt.push(' ');
+            }
+
+            lines_coutnt += value.as_str();
+            lines_coutnt.push(' ');
+            lines_coutnt.push('\n');
+        }
+
+        let line_number_list =
+            container(text(lines_coutnt).line_height(LineHeight::default())).padding(2.6);
+
+        // TODO: Better way to display line numbers.
+
         let input = text_editor(&self.content)
             .on_action(Message::Edit)
             .height(Length::Fill);
-        // .highlight::<Highlighter>(highlighter::Settings {}, |highlight, _theme| {
-        //     highlight.format()
-        //});
 
-        // let welcome = text("Welcome to SEIL").size(50);
+        let input_box = row![line_number_list, input].padding(10).spacing(1);
+
         match self.state {
-            State::Editing => container(column![controls, input, status_bar])
-                .padding(10)
-                .into(),
+            State::Editing => container(column![controls, input_box, status_bar]).into(),
             State::Welcome => welcome_screen(),
         }
     }
     fn theme(&self) -> Theme {
-        let palett = custom_themes::black().to_owned();
+        let _palett = Theme::custom("CuSTOM".to_string(), custom_themes::black().to_owned());
         Theme::Dracula
     }
 }
@@ -194,37 +206,4 @@ async fn load_file(path: PathBuf) -> Result<(PathBuf, Arc<String>), Error> {
 enum Error {
     DialogClosed,
     IO(io::ErrorKind),
-}
-
-fn default_path() -> PathBuf {
-    PathBuf::from(format!("{}/src/test/test.asm", env!("CARGO_MANIFEST_DIR")))
-}
-const FONT: Font = Font::DEFAULT;
-
-fn highlight_token(token: Token) -> String {
-    match token {
-        Token::Opcode(op) => op.to_owned(),
-        Token::Label(label) => label.to_owned(),
-        Token::Number(num) => num.to_string(),
-        Token::Register(reg) => format!("R{}", reg),
-        Token::Comment(comment) => comment.to_owned(),
-        Token::Comma => ",".to_owned(),
-        Token::NewLine => "\n".to_owned(),
-        _ => String::new(), // Default for other tokens
-    }
-}
-
-fn highlight_code(input: &str, processor: Processor) -> Column<Message> {
-    let mut lexer = Lexer::new(input);
-    let mut column = Column::new().spacing(5);
-
-    while let token = lexer.next_token(processor) {
-        if let Token::EOF = token {
-            break;
-        }
-        let highlighted_text = highlight_token(token);
-        column = column.push(Text::new(highlighted_text).font(FONT).size(20));
-    }
-
-    column
 }

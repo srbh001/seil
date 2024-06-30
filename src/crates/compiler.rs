@@ -17,7 +17,7 @@
 //
 // Method used to mitigate hazards: [List Scheduling](https://en.wikipedia.org/wiki/List_scheduling).
 
-use crate::lexer::{Lexer, Token, TokenStream};
+use crate::lexer;
 use crate::parser::{Instruction, Parser};
 
 pub fn dissasembler(parser: Parser) {
@@ -28,38 +28,67 @@ pub fn dissasembler(parser: Parser) {
     let mut lines_traversed = 0;
 
     for instruction in instructions.iter() {
-        let opcode = instruction.opcode.clone();
-        let reg_a = instruction.reg_a;
-        let reg_b = instruction.reg_b;
-        let reg_c = instruction.reg_c;
-        let imm = instruction.imm;
-
         if instruction.line_number > lines_traversed {
             let line = lexer_string
                 .lines()
                 .nth(instruction.line_number - 1)
                 .unwrap();
-            println!("{}", line);
-            instruction_to_binary(instruction.clone());
+            println!(
+                "[INFO] Instruction: {:016b}, {}",
+                instruction_to_binary(instruction.clone()),
+                instruction.opcode
+            );
             lines_traversed = instruction.line_number;
         }
     }
 }
 
-fn instruction_to_binary(instruction: Instruction) {}
+fn instruction_to_binary(instruction: Instruction) -> i16 {
+    let instruction_bin: i16;
 
-fn register_to_binary(reg: &str) -> &str {
-    match reg {
-        "R0" => "000",
-        "R1" => "001",
-        "R2" => "010",
-        "R3" => "011",
-        "R4" => "100",
-        "R5" => "101",
-        "R6" => "110",
-        "R7" => "111",
-        _ => panic!("Invalid register"),
+    let opcode_bin = String::from(opcode_to_binary(instruction.opcode.as_str()));
+    let opcode = instruction.clone().opcode;
+    let reg_a = register_to_binary(instruction.reg_a);
+
+    if lexer::OPCODES_WITH_SINGLE_REGISTER_PIPELINED.contains(&opcode.as_str()) {
+        if instruction.imm > 511 {
+            panic!("[ERROR] Immediate value out of range");
+        }
+        let imm = format!("{:09b}", instruction.imm);
+
+        let instruction_bin_str = format!("{}{}{}", opcode_bin, reg_a, imm);
+        instruction_bin = i16::from_str_radix(&instruction_bin_str, 2).unwrap();
+    } else if lexer::OPCODES_WITH_TWO_REGISTERS_PIPELINED.contains(&opcode.as_str()) {
+        let reg_b = register_to_binary(instruction.reg_b.expect("[ERROR] Missing register B"));
+
+        if instruction.imm > 63 {
+            panic!("[ERROR] Immediate value out of range");
+        }
+        let imm = format!("{:06b}", instruction.imm);
+
+        let instruction_bin_str = format!("{}{}{}{}", opcode_bin, reg_a, reg_b, imm);
+
+        instruction_bin = i16::from_str_radix(&instruction_bin_str, 2).unwrap();
+    } else if lexer::OPCODES_WITH_THREE_REGISTERS_PIPELINED.contains(&opcode.as_str()) {
+        let reg_b = register_to_binary(instruction.reg_b.expect("[ERROR] Missing register B"));
+        let reg_c = register_to_binary(instruction.reg_c.expect("[ERROR] Missing register C"));
+
+        let instruction_bin_str = format!("{}{}{}{}", opcode_bin, reg_a, reg_b, reg_c);
+
+        instruction_bin = i16::from_str_radix(&instruction_bin_str, 2).unwrap();
+    } else {
+        panic!("Invalid opcode: {}", instruction.opcode.as_str());
+        // Technically, this should never be reached.
     }
+
+    instruction_bin
+}
+
+fn register_to_binary(reg: i32) -> String {
+    if reg > 7 {
+        panic!("[ERROR] Register out of range");
+    }
+    format!("{:03b}", reg)
 }
 
 fn opcode_to_binary(opcode: &str) -> &str {
@@ -72,7 +101,7 @@ fn opcode_to_binary(opcode: &str) -> &str {
         "ACC" => "0001", // RA RB RC 1 10
         "ACZ" => "0001", // RA RB RC 1 01
         "ACW" => "0001", // RA RB RC 1 11
-        "ADI" => "00RA", // RB IMM6
+        "ADI" => "0000", //RA RB IMM6
         "NDU" => "0010", // RA RB RC 0 00
         "NDC" => "0010", // RA RB RC 0 10
         "NDZ" => "0010", // RA RB RC 0 01
@@ -94,10 +123,14 @@ fn opcode_to_binary(opcode: &str) -> &str {
     }
 }
 
-fn immediate_to_binary(imm: i32) -> String {
-    let imm_binary = format!("{:b}", imm.to_owned());
-    let imm_binary_len = imm_binary.len();
-    let mut imm_binary_padded = String::from("0".repeat(16 - imm_binary_len));
-    imm_binary_padded.push_str(&imm_binary);
-    imm_binary_padded
+fn immediate6_to_binary(imm: i32) -> String {
+    let imm_binary = format!("{:6b}", imm.to_owned());
+
+    imm_binary
+}
+
+fn immediate9_to_binary(imm: i32) -> String {
+    let imm_binary = format!("{:9b}", imm.to_owned());
+
+    imm_binary
 }

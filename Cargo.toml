@@ -1,16 +1,23 @@
 [package]
-name = "iitb-cpu"
+name = "iitb_cpu"
 version = "0.1.0"
 authors = ["Saurabh Kumar <saurabhkumarnomeas@gmail.com>"]
 edition = "2021"
 
 [dependencies]
 
-tokio = {version = "1.0.1", features = ["fs", "rt"]}
+tokio = { version = "1.0.1", features = ["fs", "rt"] }
 #iced = {git = "https://github.com/iced-rs/iced.git", rev = "refs/tags/text-editor", features=["debug", "canvas", "highlighter"]}
-iced = {version = "0.12.0", features=["debug", "canvas", "highlighter", "tokio", "image"]}
-rfd = {version ="*" }
-# iced_core = "*"
+iced = { version = "0.12.0", features = [
+    "debug",
+    "canvas",
+    "highlighter",
+    "tokio",
+    "image",
+] }
+rfd = { version = "*" }
+iced_core = "*"
+
 # ropey = "*"
 # tree-sitter = "*"
 

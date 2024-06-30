@@ -22,7 +22,7 @@ pub fn black() -> Palette {
 
         text: Color::WHITE,
 
-        primary: Color::from_rgb8(255, 213, 3),
+        primary: Color::BLACK,
 
         success: Color::from_rgb8(80, 250, 123),
 

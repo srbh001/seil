@@ -12,8 +12,6 @@
 #![allow(dead_code)]
 // TODO: Remove this line after implementing the code
 
-use std::fmt;
-
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Processor {
     SingleCycle,
@@ -66,17 +64,40 @@ pub const INSTRUCTION_PIPELINED: [&'static str; 26] = [
     "JRI", //11_11 RA 0 0000
 ];
 
-// #[derive(Debug, PartialEq, Clone, Copy)]
-// pub enum Register {
-//     R0,
-//     R1,
-//     R2,
-//     R3,
-//     R4,
-//     R5,
-//     R6,
-//     R7,
-// }
+pub const OPCODES_WITH_THREE_REGISTERS_PIPELINED: [&str; 14] = [
+    "ADA", //00_01 RA RB RC 0 00
+    "ADC", //00_01 RA RB RC 0 10
+    "ADZ", //00_01 RA RB RC 0 01
+    "AWC", //00_01 RA RB RC 0 11
+    "ACA", //00_01 RA RB RC 1 00
+    "ACC", //00_01 RA RB RC 1 10
+    "ACZ", //00_01 RA RB RC 1 01
+    "ACW", //00_01 RA RB RC 1 11
+    "NDU", //00_10 RA RB RC 0 00
+    "NDC", //00_10 RA RB RC 0 10
+    "NDZ", //00_10 RA RB RC 0 01
+    "NCU", //00_10 RA RB RC 1 00
+    "NCC", //00_10 RA RB RC 1 10
+    "NCZ", //00_10 RA RB RC 1 01
+];
+
+pub const OPCODES_WITH_TWO_REGISTERS_PIPELINED: [&str; 7] = [
+    "ADI", //00_00 RA RB IMM6
+    "LLI", //00_11 RA IMM9
+    "LW",  //01_00 RA RB IMM6
+    "SW",  //01_01 RA RB IMM6
+    "BEQ", //10_00 RA RB IMM6
+    "BLT", //10_01 RA RB IMM6
+    "BLE", //10_10 RA RB IMM6
+];
+pub const OPCODES_WITH_SINGLE_REGISTER_PIPELINED: [&str; 6] = [
+    "LLI", //00_11 RA IMM9
+    "LM",  //01_10 RA 0 + 8 bits corresponding to R0 to R7
+    "SM",  //01_11 RA 0 + 8 bits corresponding to R0 to R7
+    "JAL", //11_00 RA IMM9
+    "JLR", //11_01 RA 0 0000
+    "JRI", //11_11 RA 0 0000
+];
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token {
@@ -178,13 +199,10 @@ impl Lexer {
                         if ch == ':' {
                             identifier.push(ch);
                             self.next_char();
-                            //self.next_char();
-                            // println!("This is the problem");
+
                             break;
                         }
                     } else {
-                        //self.position = position + 3;
-                        //self.next_char();
                         break;
                     }
                 } else if ch == ':' {
@@ -192,8 +210,7 @@ impl Lexer {
                     self.next_char();
                     break;
                 }
-                //self.position -= 1;
-                // println!("ThIS is the problem");
+
                 break;
             }
         }
@@ -272,7 +289,6 @@ impl Lexer {
 
                     // Token::Comment(comment)
                 } else if ch == ';' {
-                    let comment: String = self.input[self.position..].iter().collect();
                     let index = self.input[self.position..].iter().position(|&x| x == '\n');
                     if let Some(_index) = index {
                         let comment: String = self.input[self.position..self.position + _index]
