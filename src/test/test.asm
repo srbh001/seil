@@ -8,5 +8,5 @@ MAIN3:
     LW R3, R4 , 0x0F
     ADI R1, R2, #10
     ADI R3, R2, 62
-    SW R3 , R2 , 51
+    SW R3 , RA , 100
     LLI R1, 0xFF

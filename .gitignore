@@ -14,5 +14,8 @@ Cargo.lock
 .DS_Store
 log.md
 
+
+.vscode/
+
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb

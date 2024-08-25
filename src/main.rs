@@ -1,4 +1,4 @@
-use iitb_cpu::crates::compiler::dissasembler;
+use iitb_cpu::crates::assembler::dissasembler;
 use iitb_cpu::lexer::{Lexer, TokenStream};
 use iitb_cpu::parser::Parser;
 use iitb_cpu::texteditor::tesh_editor;
