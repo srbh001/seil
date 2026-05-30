@@ -1,4 +1,5 @@
-use iitb_cpu::crates::assembler::dissasembler;
+use iitb_cpu::crates::assembler::{assemble, print_binary, to_intel_hex};
+use iitb_cpu::crates::optimizer::schedule;
 use iitb_cpu::lexer::{Lexer, TokenStream};
 use iitb_cpu::parser::Parser;
 use iitb_cpu::texteditor::tesh_editor;
@@ -46,7 +47,13 @@ fn main() -> io::Result<()> {
         parser.instructions, parser.token_stream
     );
 
-    dissasembler(parser);
+    parser.instructions = schedule(parser.instructions.clone());
+    let binaries = assemble(&parser);
+    let hex = to_intel_hex(&binaries, parser.org_base as u16);
+    println!("\nIntel HEX output:\n{}", hex);
+    std::fs::write("output.hex", &hex).expect("Failed to write output.hex");
+
+    print_binary(parser);
     tesh_editor();
 
     Ok(())

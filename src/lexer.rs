@@ -103,6 +103,8 @@ pub const OPCODES_WITH_SINGLE_REGISTER_PIPELINED: [&str; 6] = [
 pub enum Token {
     Opcode(String), // a symbol(opcode)
     Label(String),
+    Identifier(String), // label reference in branch/jump operand
+    Org,               // ORG directive keyword
     Number(i32),
     Register(i32), // Only allow registers from 0 to 7
     Comment(String),
@@ -118,6 +120,7 @@ impl Token {
         match self {
             Token::Opcode(s) => s.clone(),
             Token::Label(s) => s.clone(),
+            Token::Identifier(s) => s.clone(),
             Token::Comment(s) => s.clone(),
             Token::Error(s) => s.clone(),
             _ => panic!("Token is not a string"),
@@ -255,16 +258,20 @@ impl Lexer {
                                         .contains(&identifier.to_uppercase().as_str())
                                     {
                                         Token::Opcode(identifier)
+                                    } else if identifier.to_uppercase() == "ORG" {
+                                        Token::Org
                                     } else {
-                                        Token::Error(identifier)
+                                        Token::Identifier(identifier)
                                     }
                                 } else if matches!(processor, Processor::Pipelined) {
                                     if INSTRUCTION_PIPELINED
                                         .contains(&identifier.to_uppercase().as_str())
                                     {
                                         Token::Opcode(identifier)
+                                    } else if identifier.to_uppercase() == "ORG" {
+                                        Token::Org
                                     } else {
-                                        Token::Error(identifier)
+                                        Token::Identifier(identifier)
                                     }
                                 } else {
                                     Token::Error(format!("Unknown processor: {:?}", processor))

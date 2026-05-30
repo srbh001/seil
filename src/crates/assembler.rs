@@ -20,26 +20,15 @@
 use crate::lexer;
 use crate::parser::{Instruction, Parser};
 
-pub fn dissasembler(parser: Parser) {
+pub fn print_binary(parser: Parser) {
     let instructions = parser.instructions;
-    let labels = parser.labels;
-    let label_line_numbers = parser.label_line_numbers;
-    let lexer_string: String = parser.lexer.input.iter().collect();
-    let mut lines_traversed = 0;
-
-    for instruction in instructions.iter() {
-        if instruction.line_number > lines_traversed {
-            let line = lexer_string
-                .lines()
-                .nth(instruction.line_number - 1)
-                .unwrap();
-            println!(
-                "[INFO] Instruction: {:016b}, {}",
-                instruction_to_binary(instruction.clone()),
-                instruction.opcode
-            );
-            lines_traversed = instruction.line_number;
-        }
+    for (addr, instruction) in instructions.iter().enumerate() {
+        println!(
+            "[{:04X}] {:016b}  {}",
+            addr,
+            instruction_to_binary(instruction.clone()),
+            instruction.opcode
+        );
     }
 }
 
@@ -51,31 +40,31 @@ fn instruction_to_binary(instruction: Instruction) -> i16 {
     let reg_a = register_to_binary(instruction.reg_a);
 
     if lexer::OPCODES_WITH_SINGLE_REGISTER_PIPELINED.contains(&opcode.as_str()) {
-        if instruction.imm > 511 {
-            panic!("[ERROR] Immediate value out of range");
+        if instruction.imm < -256 || instruction.imm > 255 {
+            panic!("[ERROR] IMM9 out of range: {}", instruction.imm);
         }
-        let imm = format!("{:09b}", instruction.imm);
+        let imm = format!("{:09b}", (instruction.imm as u16) & 0x1FF);
 
         let instruction_bin_str = format!("{}{}{}", opcode_bin, reg_a, imm);
-        instruction_bin = i16::from_str_radix(&instruction_bin_str, 2).unwrap();
+        instruction_bin = u16::from_str_radix(&instruction_bin_str, 2).unwrap() as i16;
     } else if lexer::OPCODES_WITH_TWO_REGISTERS_PIPELINED.contains(&opcode.as_str()) {
         let reg_b = register_to_binary(instruction.reg_b.expect("[ERROR] Missing register B"));
 
-        if instruction.imm > 63 {
-            panic!("[ERROR] Immediate value out of range");
+        if instruction.imm < -32 || instruction.imm > 31 {
+            panic!("[ERROR] IMM6 out of range: {}", instruction.imm);
         }
-        let imm = format!("{:06b}", instruction.imm);
+        let imm = format!("{:06b}", (instruction.imm as u8) & 0x3F);
 
         let instruction_bin_str = format!("{}{}{}{}", opcode_bin, reg_a, reg_b, imm);
 
-        instruction_bin = i16::from_str_radix(&instruction_bin_str, 2).unwrap();
+        instruction_bin = u16::from_str_radix(&instruction_bin_str, 2).unwrap() as i16;
     } else if lexer::OPCODES_WITH_THREE_REGISTERS_PIPELINED.contains(&opcode.as_str()) {
         let reg_b = register_to_binary(instruction.reg_b.expect("[ERROR] Missing register B"));
         let reg_c = register_to_binary(instruction.reg_c.expect("[ERROR] Missing register C"));
 
         let instruction_bin_str = format!("{}{}{}{}", opcode_bin, reg_a, reg_b, reg_c);
 
-        instruction_bin = i16::from_str_radix(&instruction_bin_str, 2).unwrap();
+        instruction_bin = u16::from_str_radix(&instruction_bin_str, 2).unwrap() as i16;
     } else {
         panic!("Invalid opcode: {}", instruction.opcode.as_str());
         // Technically, this should never be reached.
@@ -124,13 +113,48 @@ fn opcode_to_binary(opcode: &str) -> &str {
 }
 
 fn immediate6_to_binary(imm: i32) -> String {
-    let imm_binary = format!("{:6b}", imm.to_owned());
-
-    imm_binary
+    format!("{:6b}", imm)
 }
 
 fn immediate9_to_binary(imm: i32) -> String {
-    let imm_binary = format!("{:9b}", imm.to_owned());
+    format!("{:9b}", imm)
+}
 
-    imm_binary
+pub fn assemble(parser: &Parser) -> Vec<i16> {
+    parser.instructions.iter()
+        .map(|i| instruction_to_binary(i.clone()))
+        .collect()
+}
+
+pub fn to_intel_hex(words: &[i16], base_addr: u16) -> String {
+    let all_bytes: Vec<u8> = words.iter()
+        .flat_map(|&w| {
+            let b = (w as u16).to_be_bytes();
+            [b[0], b[1]]
+        })
+        .collect();
+
+    const BYTES_PER_RECORD: usize = 16;
+    let mut output = String::new();
+
+    for (chunk_idx, chunk) in all_bytes.chunks(BYTES_PER_RECORD).enumerate() {
+        let addr = base_addr.wrapping_add((chunk_idx * BYTES_PER_RECORD) as u16);
+        let byte_count = chunk.len() as u8;
+        let addr_hi = (addr >> 8) as u8;
+        let addr_lo = (addr & 0xFF) as u8;
+
+        let mut sum: u32 = byte_count as u32 + addr_hi as u32 + addr_lo as u32;
+        for &b in chunk {
+            sum += b as u32;
+        }
+        let checksum = (!(sum as u8)).wrapping_add(1);
+
+        let data: String = chunk.iter().map(|b| format!("{:02X}", b)).collect();
+        output.push_str(&format!(
+            ":{:02X}{:04X}00{}{:02X}\n",
+            byte_count, addr, data, checksum
+        ));
+    }
+    output.push_str(":00000001FF\n");
+    output
 }

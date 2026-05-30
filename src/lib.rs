@@ -4,6 +4,7 @@ pub mod texteditor;
 pub mod welcome;
 pub mod crates {
     pub mod assembler;
+    pub mod optimizer;
     pub mod custom_themes;
     pub mod iitbcpu;
 }

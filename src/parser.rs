@@ -9,6 +9,7 @@
 // The ISA is based on the RISC-V ISA and has been modified to suit the needs of the EE309 and EE224 courses at IIT Bombay.
 //
 
+use std::collections::HashMap;
 use crate::lexer::{Lexer, Processor, Token, TokenStream};
 
 #[derive(Debug, Clone)]
@@ -54,6 +55,8 @@ pub struct Parser {
     pub instructions: Vec<Instruction>, // the final program - contains labels separated instructions
     pub labels: Vec<String>,
     pub label_line_numbers: Vec<usize>,
+    pub label_addresses: HashMap<String, usize>, // label name → absolute instruction address
+    pub org_base: usize,                         // starting address set by ORG directive
     // contains the labels
     // Example:
     // MAIN: ADI R1, R2, 10 // I1
@@ -81,22 +84,47 @@ impl Parser {
         let instructions = Vec::new();
         let mut labels = Vec::new();
         let label_line_numbers = Vec::new();
+        let mut label_addresses: HashMap<String, usize> = HashMap::new();
+        let mut current_address = 0usize;
+        let mut org_base: Option<usize> = None;
+        let mut expecting_org_addr = false;
 
         loop {
             let token = lexer.next_token(Processor::Pipelined);
             token_stream.add(token.clone());
-            if let Token::Label(label) = token {
-                labels.push(label);
-            } else if token == Token::EOF {
-                break;
+            match &token {
+                Token::Org => { expecting_org_addr = true; }
+                Token::Number(n) if expecting_org_addr => {
+                    current_address = *n as usize;
+                    if org_base.is_none() {
+                        org_base = Some(current_address);
+                    }
+                    expecting_org_addr = false;
+                }
+                Token::Label(label) => {
+                    let name = label.trim_end_matches(':').trim().to_string();
+                    label_addresses.insert(name, current_address);
+                    labels.push(label.clone());
+                    expecting_org_addr = false;
+                }
+                Token::Opcode(_) => {
+                    current_address += 1;
+                    expecting_org_addr = false;
+                }
+                Token::NewLine => { expecting_org_addr = false; }
+                Token::EOF => break,
+                _ => {}
             }
         }
+        let org_base = org_base.unwrap_or(0);
         Parser {
             token_stream,
             lexer,
             instructions,
             labels,
             label_line_numbers,
+            label_addresses,
+            org_base,
         }
     }
 
@@ -150,6 +178,7 @@ impl Parser {
 
         let mut instructions_to_add = Vec::new();
         let mut label_count = 0;
+        let mut current_address = self.org_base;
 
         for (line_number, token_by_lines) in self.token_stream.tokens_by_line.iter().enumerate() {
             let mut token_position: usize = 0;
@@ -158,6 +187,12 @@ impl Parser {
                 token_position = position;
 
                 match token {
+                    Token::Org => {
+                        if let Some(Token::Number(n)) = token_by_lines.get(token_position + 1) {
+                            current_address = *n as usize;
+                        }
+                        break;
+                    }
                     Token::Label(_) => {
                         if position != 0 {
                             return Err(ParserError {
@@ -251,6 +286,7 @@ impl Parser {
                                 Processor::Pipelined,
                             );
                             instructions_to_add.push((instruction, label_count));
+                            current_address += 1;
                         } else if opcodes_with_two_register_pipelined.contains(&opcode.as_str()) {
                             if let Some(Token::Register(reg)) =
                                 token_by_lines.get(token_position + 1)
@@ -294,15 +330,33 @@ impl Parser {
                                     column_number: position + 3,
                                 });
                             }
-                            if let Some(Token::Number(num)) = token_by_lines.get(token_position + 5)
-                            {
-                                imm = *num;
-                            } else {
-                                return Err(ParserError {
+                            match token_by_lines.get(token_position + 5) {
+                                Some(Token::Number(num)) => { imm = *num; }
+                                Some(Token::Identifier(name)) => {
+                                    match self.label_addresses.get(name.as_str()) {
+                                        Some(&addr) => {
+                                            let offset = addr as i32 - (current_address as i32 + 1);
+                                            if offset < -32 || offset > 31 {
+                                                return Err(ParserError {
+                                                    message: format!("Label offset {} out of IMM6 range (-32..31)", offset),
+                                                    line_number: line_number + 1,
+                                                    column_number: position + 6,
+                                                });
+                                            }
+                                            imm = offset;
+                                        }
+                                        None => return Err(ParserError {
+                                            message: format!("Undefined label: {}", name),
+                                            line_number: line_number + 1,
+                                            column_number: position + 6,
+                                        }),
+                                    }
+                                }
+                                _ => return Err(ParserError {
                                     message: "Expected immediate here".to_string(),
                                     line_number: line_number + 1,
                                     column_number: position + 5,
-                                });
+                                }),
                             }
 
                             let instruction = Instruction::new(
@@ -316,6 +370,7 @@ impl Parser {
                                 Processor::Pipelined,
                             );
                             instructions_to_add.push((instruction, label_count));
+                            current_address += 1;
                         } else if opcodes_with_single_register_pipelined.contains(&opcode.as_str())
                         {
                             if let Some(Token::Register(reg)) =
@@ -340,15 +395,23 @@ impl Parser {
                                 });
                             }
 
-                            if let Some(Token::Number(num)) = token_by_lines.get(token_position + 3)
-                            {
-                                imm = *num;
-                            } else {
-                                return Err(ParserError {
+                            match token_by_lines.get(token_position + 3) {
+                                Some(Token::Number(num)) => { imm = *num; }
+                                Some(Token::Identifier(name)) => {
+                                    match self.label_addresses.get(name.as_str()) {
+                                        Some(&addr) => { imm = addr as i32; }
+                                        None => return Err(ParserError {
+                                            message: format!("Undefined label: {}", name),
+                                            line_number: line_number + 1,
+                                            column_number: position + 4,
+                                        }),
+                                    }
+                                }
+                                _ => return Err(ParserError {
                                     message: "Expected immediate".to_string(),
                                     line_number: line_number + 1,
                                     column_number: position + 3,
-                                });
+                                }),
                             }
 
                             let instruction = Instruction::new(
@@ -362,6 +425,7 @@ impl Parser {
                                 Processor::Pipelined,
                             );
                             instructions_to_add.push((instruction, label_count));
+                            current_address += 1;
                         } else {
                             return Err(ParserError {
                                 message: format!("Invalid opcode: {}", opcode),
